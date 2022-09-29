@@ -568,6 +568,9 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xGetScreenToWorld2D = define_c_func( raylib, "+GetScreenToWorld2D", {RL_VECTOR2,RL_CAMERA2D}, RL_VECTOR2 ),
 	xSetTargetFPS       = define_c_proc( raylib, "+SetTargetFPS", {C_INT} ),
 	xGetRandomValue     = define_c_func( raylib, "+GetRandomValue", {C_INT,C_INT}, C_INT ),
+	xSetRandomSeed      = define_c_proc( raylib, "+SetRandomSeed", {C_UINT} ),
+	xTakeScreenshot     = define_c_proc( raylib, "+TakeScreenshot", {C_STRING} ),
+	xSetConfigFlags     = define_c_proc( raylib, "+SetConfig Flags", {C_UINT} ),
 	xClearBackground    = define_c_proc( raylib, "+ClearBackground", {RL_COLOR} ),
 	xBeginDrawing       = define_c_proc( raylib, "+BeginDrawing", {} ),
 	xEndDrawing         = define_c_proc( raylib, "+EndDrawing", {} ),
@@ -588,6 +591,7 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xGetMouseWheelMove  = define_c_func( raylib, "+GetMouseWheelMove", {}, C_FLOAT ),
 	xDrawLine           = define_c_proc( raylib, "+DrawLine", {C_INT,C_INT,C_INT,C_INT,RL_COLOR} ),
 	xDrawCircle         = define_c_proc( raylib, "+DrawCircle", {C_INT,C_INT,C_FLOAT,RL_COLOR} ),
+	xDrawCircleV        = define_c_proc( raylib, "+DrawCircleV", {RL_VECTOR2, C_FLOAT, RL_COLOR} ),
 	xDrawRectangle      = define_c_proc( raylib, "+DrawRectangle", {C_INT,C_INT,C_INT,C_INT,RL_COLOR} ),
 	xDrawRectangleRec   = define_c_proc( raylib, "+DrawRectangleRec", {RL_RECTANGLE,RL_COLOR} ),
 	xDrawRectangleLines = define_c_proc( raylib, "+DrawRectangleLines", {C_INT,C_INT,C_INT,C_INT,RL_COLOR} ),
@@ -597,6 +601,13 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xDrawCube           = define_c_proc( raylib, "+DrawCube", {RL_VECTOR3,C_FLOAT,C_FLOAT,C_FLOAT,RL_COLOR} ),
 	xDrawCubeWires      = define_c_proc( raylib, "+DrawCubeWires", {RL_VECTOR3,C_FLOAT,C_FLOAT,C_FLOAT,RL_COLOR} ),
 	xDrawGrid           = define_c_proc( raylib, "+DrawGrid", {C_INT,C_FLOAT} ),
+	xOpenURL            = define_c_proc( raylib, "+OpenURL", {C_STRING} ),
+	xGetMouseRay        = define_c_func( raylib, "+GetMouseRay", {RL_VECTOR2, RL_CAMERA}, RL_RAY),
+	xGetCameraMatrix    = define_c_func( raylib, "+GetCameraMatrix", {RL_CAMERA}, RL_MATRIX),
+	xGetCameraMatrix2D  = define_c_func( raylib, "+GetCameraMatrix2D", {RL_CAMERA2D}, RL_MATRIX),
+	xGetWorldToScreen   = define_c_func( raylib, "+GetWorldToScreen", {RL_VECTOR3, RL_CAMERA}, RL_VECTOR2),
+	xGetWorldToScreenEx = define_c_func( raylib, "+GetWorldToScreenEx", {RL_VECTOR3, RL_CAMERA, C_INT, C_INT}, RL_VECTOR2),
+	xGetWorldToScreen2D = define_c_func( raylib, "+GetWorldToScreen2D", {RL_VECTOR2, RL_CAMERA2D}, RL_VECTOR2),
 $
 
 public procedure InitWindow( integer width, integer height, sequence title )
@@ -626,6 +637,18 @@ end procedure
 public function GetRandomValue( integer min, integer max )
 	return c_func( xGetRandomValue, {min,max} )
 end function
+
+public procedure SetRandomSeed( atom seed )
+	c_proc(xSetRandomSeed, {seed} )
+end procedure
+
+public procedure TakeScreenshot( sequence fileName )
+	c_proc(xTakeScreenshot, {fileName} )
+end procedure
+
+public procedure SetConfigFlags( atom flags )
+	c_proc(xSetConfigFlags, {flags} )
+end procedure
 
 public procedure ClearBackground( sequence color )
 	c_proc( xClearBackground, {color} ) -- color is {r,g,b,a}
@@ -707,6 +730,10 @@ public procedure DrawCircle( integer centerX, integer centerY, atom radius, sequ
 	c_proc( xDrawCircle, {centerX,centerY,radius,color} )
 end procedure
 
+public procedure DrawCircleV(sequence center, atom radius, sequence color)
+	c_proc(xDrawCircleV,{center,radius,color})
+end procedure
+
 public procedure DrawRectangle( integer posX, integer posY, integer width, integer height, sequence color )
 	c_proc( xDrawRectangle, {posX,posY,width,height,color} )
 end procedure
@@ -743,3 +770,27 @@ public procedure DrawGrid( integer slices, atom spacing )
 	c_proc( xDrawGrid, {slices,spacing} )
 end procedure
 
+public function GetMouseRay(sequence mousePosition, sequence camera)
+	return c_func(xGetMouseRay,{mousePosition,camera} )
+end function
+
+public function GetCameraMatrix(sequence camera)
+	return c_func(xGetCameraMatrix,{camera} )
+end function
+
+public function GetCameraMatrix2D(sequence camera)
+	return c_func(xGetCameraMatrix2D,{camera} )
+end function
+
+public function GetWorldToScreen(sequence pos, sequence camera)
+	return c_func(xGetWorldToScreen,{pos,camera})
+end function
+
+public function GetWorldToScreenEx(sequence pos,sequence camera,integer width,integer height)
+	return c_func(xGetWorldToScreenEx,{pos,camera,width,height})
+end function
+
+public function GetWorldToScreen2D(sequence pos,sequence camera)
+	return c_func(xGetWorldToScreen2D,{pos,camera})
+end function
+­734.43

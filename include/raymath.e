@@ -13,10 +13,29 @@ public function Vector2Add( sequence v1, sequence v2 )
 	return v1 + v2
 end function
 
+public function Vector2Subtract(sequence v1, sequence v2)
+	-- Vector2 result = {v1.x - v2.x, v1.y - v2.y}
+	
+   return v1 - v2
+end function
+
+public function Vector2Multiply(sequence v1,sequence v2)
+   --Vector2 result = {v1.x *v2.x, v2.x*v2.y}
+   
+   return v1 * v2
+	
+end function
+
+public function Vector2Divide(sequence v1, sequence v2)
+	--Vector2 result = {v1.x/v2.x, v2.x/v2.y}
+	
+   return v1 / v2
+end function
+
 public function Vector2Scale( sequence v, atom scale )
 
 --	Vector2 result = { v.x*scale, v.y*scale };
 
 	return v * scale
 end function
-
+­32.17
