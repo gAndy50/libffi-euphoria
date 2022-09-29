@@ -620,6 +620,12 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xGetWorldToScreen2D = define_c_func( raylib, "+GetWorldToScreen2D", {RL_VECTOR2, RL_CAMERA2D}, RL_VECTOR2),
 	xGetScreenWidth     = define_c_func( raylib, "+GetScreenWidth", {}, C_INT),
 	xGetScreenHeight    = define_c_func( raylib, "+GetScreenHeight", {}, C_INT),
+	xGetMouseX		 	= define_c_func( raylib, "+GetMouseX", {}, C_INT),
+	xGetMouseY			= define_c_func( raylib, "+GetMouseY",{}, C_INT),
+	xSetMousePosition	= define_c_proc( raylib, "+SetMousePosition", {C_INT, C_INT}),
+	xSetMouseOffset		= define_c_proc( raylib, "+SetMouseOffset",{C_INT, C_INT}),
+	xSetMouseScale		= define_c_proc( raylib, "+SetMouseScale",{C_FLOAT, C_FLOAT}),
+	xSetMouseCursor		= define_c_proc( raylib, "+SetMouseCursor",{C_INT}),
 $
 
 public procedure InitWindow( integer width, integer height, sequence title )
@@ -853,4 +859,28 @@ end procedure
 public procedure EndBlendMode()
 	c_proc(xEndBlendMode,{})
 end procedure
-­762.38
+
+public function GetMouseX()
+	return c_func(xGetMouseX,{})
+end function
+
+public function GetMouseY()
+	return c_func(xGetMouseY,{})
+end function
+
+public procedure SetMousePosition(integer x,integer y)
+	c_proc(xSetMousePosition,{x,y})
+end procedure
+
+public procedure SetMouseOffset(integer offsetx,integer offsety)
+	c_proc(xSetMouseOffset,{offsetx,offsety})
+end procedure
+
+public procedure SetMouseScale(atom scaleX,atom scaleY)
+	c_proc(xSetMouseScale,{scaleX,scaleY})
+end procedure
+
+public procedure SetMouseCursor(integer cursor)
+	c_proc(xSetMouseCursor,{cursor})
+end procedure
+­884.33
