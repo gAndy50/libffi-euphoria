@@ -301,6 +301,81 @@ public constant RL_AUDIOSTREAM = define_c_type({
 	C_UINT     -- channels      // Number of channels (1-mono, 2-stereo, ...)
 })
 
+--Sound
+public constant RL_SOUND = define_c_type({
+    RL_AUDIOSTREAM, -- Audio stream
+    C_UINT -- Total number of frames (considering channels)
+})
+
+--Music, audio stream, anything longer than 10 seconds should be streamed
+public constant RL_MUSIC = define_c_type({
+   RL_AUDIOSTREAM, --Audio stream
+   C_UINT, --total numer of frames (considering channels)
+   C_BOOL, --music looping enable
+   C_INT, --type of music context (audio filetype)
+   C_POINTER --audio context data, depends on type
+})
+
+--VrDeviceInfo, Head-Mounted-Display device parameters
+public constant RL_VRDEVICEINFO = define_c_type({
+   C_INT, --Horizontal resolution in pixels
+   C_INT, --Vertical resolution in pixels
+   C_FLOAT, --Horizontal size in meters
+   C_FLOAT, --Vertical size in meters
+   C_FLOAT, --Screen center in meters
+   C_FLOAT, --Distance between eye and display in meters
+   C_FLOAT, --Lens separation distance in meters
+   C_FLOAT, --IDP (distance between pupils) in meters
+   {C_FLOAT,4}, --Lens distortion constant parameters
+   {C_FLOAT,4} --Chromatic aberration correction parameters
+})
+
+--VrStereoConfig, VR stereo rendering configuation for simulator
+public constant RL_VRSTEREOCONFIG = define_c_type({
+   {RL_MATRIX,2}, --VR projection matrices (per eye)
+   {RL_MATRIX,2}, --VR view offset matrices (per eye)
+   {C_FLOAT,2}, --VR left lens center
+   {C_FLOAT,2}, --VR right lens center
+   {C_FLOAT,2}, --vr left screen center
+   {C_FLOAT,2}, --vr right screen center
+   {C_FLOAT,2}, --VR distortion scale
+   {C_FLOAT,2} --VR distortion scale in
+})
+
+--File path list
+public constant RL_FILEPATHLIST = define_c_type({
+   C_UINT, --filepaths max entries
+   C_UINT, --filepathes entries count
+   C_CHAR --filepathes entries
+})
+
+--Trace log level
+public enum type TraceLogLevel
+   LOG_ALL = 0,
+   LOG_TRACE,
+   LOG_DEBUG,
+   LOG_INFO,
+   LOG_WARNING,
+   LOG_ERROR,
+   LOG_FATAL,
+   LOG_NONE
+end type
+
+--Mouse Cursor
+public enum type MouseCursor
+    MOUSE_CURSOR_DEFAULT = 0, --Default pointer shape
+    MOUSE_CURSOR_ARROW = 1, --Arrow shape
+    MOUSE_CURSOR_IBEAM = 2, --Text writing cursor shape
+    MOUSE_CURSOR_CROSSHAIR = 3, --Cross shape
+    MOUSE_CURSOR_POINTING_HAND = 4, --Pointing hand cursor
+    MOUSE_CURSOR_RESIZE_EW = 5, --Horizontal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NS = 6, --Vertical resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NWSE = 7, --Top-left to bottom-right diagonal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NESW = 8, --The top-right to bottom-left diagonal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_ALL = 9, --The omni-directional resize/move cursor shape
+    MOUSE_CURSOR_NOT_ALLOWED = 10 --The operation-not-allowed shape
+end type
+
 -- Keyboard keys (US keyboard layout)
 -- NOTE: Use GetKeyPressed() to allow redefining
 -- required keys for alternative layouts
@@ -427,6 +502,58 @@ public enum type MouseButton
 	MOUSE_BUTTON_BACK    = 6    -- Mouse button back (advanced mouse device)
 end type
 
+--Gamepad Buttons
+public enum type GamepadButton
+   GAMEPAD_BUTTON_UNKNOWN = 0, --Unknown button, just for checking
+   GAMEPAD_BUTTON_LEFT_FACE_UP, --Gamepad left DPad up button
+   GAMEPAD_BUTTON_LEFT_FACE_RIGHT, --Gamepad left Dpad right button
+   GAMEPAD_BUTTON_LEFT_FACE_DOWN, --Gamepad left dpad down button
+   GAMEPAD_BUTTON_LEFT_FACE_LEFT, --Gamepad left dpad left button
+   GAMEPAD_BUTTON_RIGHT_FACE_UP, --Gamepad right button up (Triangle or Y)
+   GAMEPAD_BUTTON_RIGHT_FACE_RIGHT, --Gamepad right button right (Square or X)
+   GAMEPAD_BUTTON_RIGHT_FACE_DOWN, --Gamepad right button down (Cross or A)
+   GAMEPAD_BUTTON_RIGHT_FACE_LEFT, --Gamepad right button left(Circle or B)
+   GAMEPAD_BUTTON_LEFT_TRIGGER_1, --Gamepad top/back trigger left (first)
+   GAMEPAD_BUTTON_LEFT_TRIGGER_2, --Gamepad top/back trigger left (second)
+   GAMEPAD_BUTTON_RIGHT_TRIGGER_1, --Gamepad top/back trigger right (first)
+   GAMEPAD_BUTTON_RIGHT_TRIGGER_2, --Gamepad top/back trigger right (second)
+   GAMEPAD_BUTTON_MIDDLE_LEFT, --Gamepad center button, left one
+   GAMEPAD_BUTTON_MIDDLE, --Gamepad center button
+   GAMEPAD_BUTTON_MIDDLE_RIGHT, --Gamepad center button, right one
+   GAMEPAD_BUTTON_LEFT_THUMB, --Gamepad joystick pressed button left
+   GAMEPAD_BUTTON_RIGHT_THUMB --Gamepad joystick pressed button right
+end type
+
+--Gamepad Axis
+public enum type GamepadAxis
+     GAMEPAD_AXIS_LEFT_X = 0, --Gamepad left stick X axis
+     GAMEPAD_AXIS_LEFT_Y = 1, --Gamepad left stick Y axis
+     GAMEPAD_AXIS_RIGHT_X = 2, --Gamepad right stick X axis
+     GAMEPAD_AXIS_RIGHT_Y = 3, --Gamepad right stick Y axis
+     GAMEPAD_AXIS_LEFT_TRIGGER = 4, --Gamepad back trigger left, pressure level: [1..-1]
+     GAMEPAD_AXIS_RIGHT_TRIGGER = 5 --Gamepad back trigger right, pressure level: [1..-1]
+end type
+
+--Color blending modes (pre-defined)
+public enum type BlendMode
+     BLEND_ALPHA = 0, --Blend textures considering alpha (default)
+     BLEND_ADDITIVE, --Blend textures adding colors
+     BLEND_MULTIPLIED, --Blend textures multiplying colors
+     BLEND_ADD_COLORS, --Blend textures adding colors (alternative)
+     BLEND_SUBTRACT_COLORS, --Blend textures subtracting colors (alternative)
+     BLEND_ALPHA_PREMULTIPLY, --Blend premultiplied textures considering alpha
+     BLEND_CUSTOM --Blend textures using custom src/dst factors (use rlSetBlendMode() )
+end type
+
+--Camera system modes
+public enum type CameraMode
+   CAMERA_CUSTOM = 0, --Custom camera
+   CAMERA_FREE, --Free Camera
+   CAMERA_ORBITAL, --Orbital camera
+   CAMERA_FIRST_PERSON, --First person camera
+   CAMERA_THIRD_PERSON --Third person camera
+end type
+
 -- Camera projection
 public enum type CameraProjection
 	CAMERA_PERSPECTIVE = 0,   -- Perspective projection
@@ -450,6 +577,11 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xEndMode3D          = define_c_proc( raylib, "+EndMode3D", {} ),
 	xIsKeyPressed       = define_c_func( raylib, "+IsKeyPressed", {C_INT}, C_BOOL ),
 	xIsKeyDown          = define_c_func( raylib, "+IsKeyDown", {C_INT}, C_BOOL ),
+	xIsKeyReleased      = define_c_func( raylib, "+IsKeyReleased", {C_INT}, C_BOOL ),
+	xIsKeyUp            = define_c_func( raylib, "+IsKeyUp", {C_INT}, C_BOOL),
+	xSetExitKey         = define_c_proc( raylib, "+SetExitKey", {C_INT} ),
+	xGetKeyPressed      = define_c_func( raylib, "+GetKeyPressed",{}, C_INT),
+	xGetCharPressed     = define_c_func( raylib, "+GetCharPressed",{}, C_INT),
 	xIsMouseButtonDown  = define_c_func( raylib, "+IsMouseButtonDown", {C_INT}, C_BOOL ),
 	xGetMousePosition   = define_c_func( raylib, "+GetMousePosition", {}, RL_VECTOR2 ),
 	xGetMouseDelta      = define_c_func( raylib, "+GetMouseDelta", {}, RL_VECTOR2 ),
@@ -529,6 +661,26 @@ end function
 
 public function IsKeyDown( integer key )
 	return c_func( xIsKeyDown, {key} )
+end function
+
+public function IsKeyReleased( integer key )
+       return c_func(xIsKeyReleased, {key} )
+end function
+
+public function IsKeyUp( integer key )
+       return c_func(xIsKeyUp, {key} )
+end function
+
+public procedure SetExitKey(integer key )
+      c_proc(xSetExitKey, {key} )
+end procedure
+
+public function GetKeyPressed()
+     return c_func(xGetKeyPressed, {} )
+end function
+
+public function GetCharPressed()
+    return c_func(xGetCharPressed, {} )
 end function
 
 public function IsMouseButtonDown( integer button )
