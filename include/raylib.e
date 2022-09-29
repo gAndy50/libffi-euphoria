@@ -567,6 +567,9 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xGetWindowPosition  = define_c_func( raylib, "+GetWindowPosition", {}, RL_VECTOR2 ),
 	xGetScreenToWorld2D = define_c_func( raylib, "+GetScreenToWorld2D", {RL_VECTOR2,RL_CAMERA2D}, RL_VECTOR2 ),
 	xSetTargetFPS       = define_c_proc( raylib, "+SetTargetFPS", {C_INT} ),
+	xGetFPS				= define_c_func( raylib, "+GetFPS", {}, C_INT),
+	xGetFrameTime		= define_c_func( raylib, "+GetFrameTime",{}, C_FLOAT),
+	xGetTime			= define_c_func( raylib, "+GetTime",{}, C_DOUBLE),
 	xGetRandomValue     = define_c_func( raylib, "+GetRandomValue", {C_INT,C_INT}, C_INT ),
 	xSetRandomSeed      = define_c_proc( raylib, "+SetRandomSeed", {C_UINT} ),
 	xTakeScreenshot     = define_c_proc( raylib, "+TakeScreenshot", {C_STRING} ),
@@ -578,6 +581,8 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xEndMode2D          = define_c_proc( raylib, "+EndMode2D", {} ),
 	xBeginMode3D        = define_c_proc( raylib, "+BeginMode3D", {RL_CAMERA3D} ),
 	xEndMode3D          = define_c_proc( raylib, "+EndMode3D", {} ),
+	xBeginBlendMode     = define_c_proc( raylib, "+BeginBlendMode", {C_INT} ),
+	xEndBlendMode       = define_c_proc( raylib, "+EndBlendMode", {} ),
 	xIsKeyPressed       = define_c_func( raylib, "+IsKeyPressed", {C_INT}, C_BOOL ),
 	xIsKeyDown          = define_c_func( raylib, "+IsKeyDown", {C_INT}, C_BOOL ),
 	xIsKeyReleased      = define_c_func( raylib, "+IsKeyReleased", {C_INT}, C_BOOL ),
@@ -586,9 +591,14 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xGetKeyPressed      = define_c_func( raylib, "+GetKeyPressed",{}, C_INT),
 	xGetCharPressed     = define_c_func( raylib, "+GetCharPressed",{}, C_INT),
 	xIsMouseButtonDown  = define_c_func( raylib, "+IsMouseButtonDown", {C_INT}, C_BOOL ),
+	xIsMouseButtonPressed = define_c_func( raylib, "+IsMouseButtonPressed", {C_INT}, C_BOOL),
+	xIsMouseButtonReleased = define_c_func( raylib, "+IsMouseButtonReleased", {C_INT}, C_BOOL),
+	xIsMouseButtonUp	= define_c_func( raylib, "+IsMouseButtonUp", {C_INT}, C_BOOL),
 	xGetMousePosition   = define_c_func( raylib, "+GetMousePosition", {}, RL_VECTOR2 ),
 	xGetMouseDelta      = define_c_func( raylib, "+GetMouseDelta", {}, RL_VECTOR2 ),
 	xGetMouseWheelMove  = define_c_func( raylib, "+GetMouseWheelMove", {}, C_FLOAT ),
+	xGetMouseWheelMoveV = define_c_func( raylib, "+GetMouseWheelMoveV", {}, RL_VECTOR2),
+	xDrawPixel          = define_c_proc( raylib, "+DrawPixel", {C_INT, C_INT, RL_COLOR} ),
 	xDrawLine           = define_c_proc( raylib, "+DrawLine", {C_INT,C_INT,C_INT,C_INT,RL_COLOR} ),
 	xDrawCircle         = define_c_proc( raylib, "+DrawCircle", {C_INT,C_INT,C_FLOAT,RL_COLOR} ),
 	xDrawCircleV        = define_c_proc( raylib, "+DrawCircleV", {RL_VECTOR2, C_FLOAT, RL_COLOR} ),
@@ -608,6 +618,8 @@ export constant raylib = open_dll( "raylib.dll" ),
 	xGetWorldToScreen   = define_c_func( raylib, "+GetWorldToScreen", {RL_VECTOR3, RL_CAMERA}, RL_VECTOR2),
 	xGetWorldToScreenEx = define_c_func( raylib, "+GetWorldToScreenEx", {RL_VECTOR3, RL_CAMERA, C_INT, C_INT}, RL_VECTOR2),
 	xGetWorldToScreen2D = define_c_func( raylib, "+GetWorldToScreen2D", {RL_VECTOR2, RL_CAMERA2D}, RL_VECTOR2),
+	xGetScreenWidth     = define_c_func( raylib, "+GetScreenWidth", {}, C_INT),
+	xGetScreenHeight    = define_c_func( raylib, "+GetScreenHeight", {}, C_INT),
 $
 
 public procedure InitWindow( integer width, integer height, sequence title )
@@ -633,6 +645,18 @@ end function
 public procedure SetTargetFPS( integer fps )
 	c_proc( xSetTargetFPS, {fps} )
 end procedure
+
+public function GetFPS()
+	return c_func(xGetFPS, {})
+end function
+
+public function GetFrameTime()
+	return c_func(xGetFrameTime,{})
+end function
+
+public function GetTime()
+	return c_func(xGetTime,{})
+end function
 
 public function GetRandomValue( integer min, integer max )
 	return c_func( xGetRandomValue, {min,max} )
@@ -706,8 +730,20 @@ public function GetCharPressed()
     return c_func(xGetCharPressed, {} )
 end function
 
+public function IsMouseButtonPressed(integer button)
+	return c_func(xIsMouseButtonPressed,{button})
+end function
+
 public function IsMouseButtonDown( integer button )
 	return c_func( xIsMouseButtonDown, {button} )
+end function
+
+public function IsMouseButtonReleased(integer button)
+	return c_func(xIsMouseButtonReleased,{button})
+end function
+
+public function IsMouseButtonUp(integer button)
+	return c_func(xIsMouseButtonUp,{button})
 end function
 
 public function GetMousePosition()
@@ -721,6 +757,14 @@ end function
 public function GetMouseWheelMove()
 	return c_func( xGetMouseWheelMove, {} )
 end function
+
+public function GetMouseWheelMoveV()
+	return c_func(xGetMouseWheelMoveV,{})
+end function
+
+public procedure DrawPixel(integer posX, integer posY, sequence color)
+	c_proc(xDrawPixel,{posX,posY,color})
+end procedure
 
 public procedure DrawLine( integer startPosX, integer startPosY, integer endPosX, integer endPosY, sequence color )
 	c_proc( xDrawLine, {startPosX,startPosY,endPosX,endPosY,color} )
@@ -793,4 +837,20 @@ end function
 public function GetWorldToScreen2D(sequence pos,sequence camera)
 	return c_func(xGetWorldToScreen2D,{pos,camera})
 end function
-­734.43
+
+public function GetScreenWidth()
+	return c_func(xGetScreenWidth,{})
+end function
+
+public function GetScreenHeight()
+	return c_func(xGetScreenHeight,{})
+end function
+
+public procedure BeginBlendMode(integer mode)
+	c_proc(xBeginBlendMode,{mode})
+end procedure
+
+public procedure EndBlendMode()
+	c_proc(xEndBlendMode,{})
+end procedure
+­762.38
