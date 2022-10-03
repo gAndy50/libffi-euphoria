@@ -60,7 +60,7 @@ ifdef WINDOWS then
 		with define X86_WIN32
 	end ifdef
 
-	constant libffi = machine_func( M_OPEN_DLL, "libffi-8.dll" ),
+	constant libffi_name = "libffi-8.dll",
 		kernel32 = machine_func( M_OPEN_DLL, "kernel32.dll" ),
 		xLoadLibrary = machine_func( M_DEFINE_C, {kernel32,"LoadLibraryA",{#03000001},#03000001} ),
 		xGetProcAddress = machine_func( M_DEFINE_C, {kernel32,"GetProcAddress",{#03000001,#03000001},#03000001} )
@@ -69,12 +69,18 @@ elsedef
 
 	constant RTLD_LAZY = 0x00001, RTLD_GLOBAL = 0x00100
 
-	constant libffi = machine_func( M_OPEN_DLL, "libffi.so" ),
+	constant libffi_name = "libffi.so.8",
 		libdl = machine_func( M_OPEN_DLL, "libdl.so.2" ),
 		_dlopen = machine_func( M_DEFINE_C, {libdl,"dlopen",{#03000001,#01000004},#03000001} ),
 		_dlsym = machine_func( M_DEFINE_C, {libdl,"dlsym",{#03000001,#03000001},#03000001} )
 
 end ifdef
+
+constant libffi = machine_func( M_OPEN_DLL, libffi_name )
+
+if not libffi then
+	machine_proc( M_CRASH, sprintf("%s not found!",{libffi_name}) )
+end if
 
 constant
 	_ffi_closure_alloc = machine_func( M_DEFINE_C, {libffi,"+ffi_closure_alloc",
@@ -173,7 +179,7 @@ elsifdef X86_WIN32 then
 		FFI_LAST_ABI,
 		FFI_DEFAULT_ABI = FFI_MS_CDECL
 
-elsedef -- X86? aarch64?
+elsifdef X86 then
 
 	--**
 	-- @nodoc@
@@ -189,9 +195,17 @@ elsedef -- X86? aarch64?
 		FFI_LAST_ABI,
 		FFI_DEFAULT_ABI = FFI_SYSV
 
+elsedef -- ARM? AARCH64?
+
+	machine_proc( M_CRASH, "Platform not yet supported by std/ffi.e" )
+
 end ifdef
 
-ifdef BITS64 then
+ifdef X86_64 then
+
+	--**
+	-- @nodoc@
+	public constant FFI_TRAMPOLINE_SIZE = 32
 
 	constant
 		ffi_type__size      =  0, -- size_t
@@ -209,7 +223,19 @@ ifdef BITS64 then
 		ffi_cif__flags      = 28, -- unsigned int
 		SIZEOF_FFI_CIF      = 32
 
-elsedef -- BITS32
+	constant
+		ffi_closure__tramp     =  0, -- char[FFI_TRAMPOLINE_SIZE]
+		ffi_closure__ftramp    =  0, -- void*
+		ffi_closure__cif       = 32, -- ffi_cif*
+		ffi_closure__fun       = 40, -- void(*fun)(ffi_cif*,void*,void**,void*)
+		ffi_closure__user_data = 48, -- void*
+		SIZEOF_FFI_CLOSURE     = 56
+
+elsifdef X86 then
+
+	--**
+	-- @nodoc@
+	public constant FFI_TRAMPOLINE_SIZE = 16
 
 	constant
 		ffi_type__size      =  0, -- size_t
@@ -226,6 +252,18 @@ elsedef -- BITS32
 		ffi_cif__bytes      = 16, -- unsigned int
 		ffi_cif__flags      = 20, -- unsigned int
 		SIZEOF_FFI_CIF      = 24
+
+	constant
+		ffi_closure__tramp     =  0, -- char[FFI_TRAMPOLINE_SIZE]
+		ffi_closure__ftramp    =  0, -- void*
+		ffi_closure__cif       = 16, -- ffi_cif*
+		ffi_closure__fun       = 20, -- void(*fun)(ffi_cif*,void*,void**,void*)
+		ffi_closure__user_data = 24, -- void*
+		SIZEOF_FFI_CLOSURE     = 28
+
+elsedef
+
+	-- TBD
 
 end ifdef
 
@@ -296,7 +334,9 @@ type string( object x )
 	return 1
 end type
 
-sequence m_funcs = {}
+sequence m_funcs = {
+	0 -- skip -1, which indicates an error
+}
 sequence m_types = {
 	ffi_type_void,
 	ffi_type_uint8,
@@ -433,10 +473,13 @@ public constant
 	FFI_TYPE_COMPLEX    = 15
 
 --**
--- Returns the size of the specified data type in bytes.
+-- Get the size of the specified data type.
 --
 -- Parameters:
 -- # ##ctype## A C data type constant
+--
+-- Returns:
+--   The size of the specified data type in bytes.
 --
 override function sizeof( atom ctype )
 
@@ -453,10 +496,13 @@ override function sizeof( atom ctype )
 end function
 
 --**
--- Returns the type ID of the specified data type.
+-- Get the type ID of the specified data type.
 --
 -- Parameters:
 -- # ##ctype## A C data type constant
+--
+-- Returns:
+--   The type ID of the specified data type.
 --
 public function typeof( atom ctype )
 	return peek2u( ctype + ffi_type__type )
@@ -476,15 +522,14 @@ public constant NULL = 0
 --****
 -- === Routines
 
+--**
+-- Read a value of the specified type from memory.
+--
 public function peek_type( atom ptr, atom ctype )
 
 	integer type_id = typeof( ctype )
 
 	switch type_id with fallthru do
-	--	case FFI_TYPE_VOID then -- 0 (undefined)
-	--		return 0
-	--	case FFI_TYPE_INT then -- 1 (deprecated)
-	--		return 0
 		case FFI_TYPE_FLOAT then -- 2
 			return machine_func( M_F32_TO_A, peek({ptr,4}) )
 		case FFI_TYPE_DOUBLE then -- 3
@@ -501,6 +546,7 @@ public function peek_type( atom ptr, atom ctype )
 			return peek2s( ptr )
 		case FFI_TYPE_UINT32 then -- 9
 			return peek4u( ptr )
+		case FFI_TYPE_INT then -- 1 (deprecated?)
 		case FFI_TYPE_SINT32 then -- 10
 			return peek4s( ptr )
 		case FFI_TYPE_UINT64 then -- 11
@@ -509,6 +555,7 @@ public function peek_type( atom ptr, atom ctype )
 			return peek8s( ptr )
 		case FFI_TYPE_STRUCT then -- 13
 			return peek_struct( ptr, ctype )
+		case FFI_TYPE_VOID then -- 0 (undefined?)
 		case FFI_TYPE_POINTER then -- 14
 			return peek_pointer( ptr )
 	end switch
@@ -517,15 +564,14 @@ public function peek_type( atom ptr, atom ctype )
 
 end function
 
+--**
+-- Write a value of the specified type into memory.
+--
 public procedure poke_type( atom ptr, atom ctype, object value )
 
 	integer type_id = typeof( ctype )
 
 	switch type_id with fallthru do
-	--	case FFI_TYPE_VOID then -- 0 (undefined)
-	--		return
-	--	case FFI_TYPE_INT then -- 1 (deprecated)
-	--		return
 		case FFI_TYPE_FLOAT then -- 2
 			poke( ptr, machine_func(M_A_TO_F32,value) )
 			return
@@ -543,6 +589,7 @@ public procedure poke_type( atom ptr, atom ctype, object value )
 		case FFI_TYPE_SINT16 then -- 8
 			poke2( ptr, value )
 			return
+		case FFI_TYPE_INT then -- 1 (deprecated?)
 		case FFI_TYPE_UINT32 then -- 9
 		case FFI_TYPE_SINT32 then -- 10
 			poke4( ptr, value )
@@ -554,6 +601,7 @@ public procedure poke_type( atom ptr, atom ctype, object value )
 		case FFI_TYPE_STRUCT then -- 13
 			poke_struct( ptr, ctype, value )
 			return
+		case FFI_TYPE_VOID then -- 0 (undefined?)
 		case FFI_TYPE_POINTER then -- 14
 			poke_pointer( ptr, value )
 			return
@@ -563,6 +611,9 @@ public procedure poke_type( atom ptr, atom ctype, object value )
 
 end procedure
 
+--**
+-- Get a sequence of the types comprising a structure.
+--
 public function get_struct_elements( atom ctype )
 
 	atom elements = peek_pointer( ctype + ffi_type__elements )
@@ -586,6 +637,9 @@ public function get_struct_elements( atom ctype )
 	return result
 end function
 
+--**
+-- Get a sequence of the element offsets (in bytes) of a structure.
+--
 public function get_struct_offsets( atom ctype, integer count, integer abi=FFI_DEFAULT_ABI )
 
 	atom buffer = machine_func( M_ALLOC, SIZEOF_POINTER*count )
@@ -599,6 +653,9 @@ public function get_struct_offsets( atom ctype, integer count, integer abi=FFI_D
 	return result
 end function
 
+--**
+-- Read the values of a structure from memory.
+--
 public function peek_struct( atom ptr, object ctype )
 
 	integer element = 0
@@ -628,6 +685,9 @@ public function peek_struct( atom ptr, object ctype )
 	return result
 end function
 
+--**
+-- Write the values of a structure into memory.
+--
 public procedure poke_struct( atom ptr, object ctype, object values )
 
 	integer element = 0
@@ -657,6 +717,9 @@ public procedure poke_struct( atom ptr, object ctype, object values )
 
 end procedure
 
+--**
+-- Allocate space for a structure and, optionally, fill it with values.
+--
 public function allocate_struct( atom ctype, sequence values={} )
 
 	atom ptr = machine_func( M_ALLOC, sizeof(ctype) )
@@ -668,6 +731,9 @@ public function allocate_struct( atom ctype, sequence values={} )
 	return ptr
 end function
 
+--**
+-- Open a shared library and return its handle.
+--
 public function open_dll( sequence name )
 
 	atom lib = NULL
@@ -697,6 +763,9 @@ public function open_dll( sequence name )
 	return lib
 end function
 
+--**
+-- Get the address of a symbol in a shared library.
+--
 public function define_c_var( atom lib, sequence name )
 
 	atom addr = NULL
@@ -713,6 +782,9 @@ public function define_c_var( atom lib, sequence name )
 	return addr
 end function
 
+--**
+-- Create a new C type definition (typically a structure made up of several types).
+--
 public function define_c_type( object elements, integer abi=FFI_DEFAULT_ABI )
 
 	atom ctype = machine_func( M_ALLOC, SIZEOF_FFI_TYPE )
@@ -756,6 +828,9 @@ public function define_c_type( object elements, integer abi=FFI_DEFAULT_ABI )
 	return ctype
 end function
 
+--**
+-- Define the arguments and return types of a C function.
+--
 public function define_c_func( atom lib, sequence name, sequence arg_types, atom rtype )
 
 ifdef WINDOWS and BITS32 then
@@ -806,13 +881,22 @@ end ifdef
 
 	m_funcs = append( m_funcs, {fn,cif,name} )
 
+	-- N.B. we return a negative integer to differentiate between routines defined
+	-- with dll:define_c_func/proc (positive) and ffi:define_c_func/proc (negative)
+
 	return length( m_funcs ) * -1
 end function
 
+--**
+-- Define the arguments of a C procedure.
+--
 public function define_c_proc( atom lib, sequence name, sequence arg_types )
 	return define_c_func( lib, name, arg_types, C_VOID )
 end function
 
+--**
+-- Call a C function and return the value.
+--
 override function c_func( integer rid, sequence args )
 
 	if rid > 0 then
@@ -851,11 +935,11 @@ override function c_func( integer rid, sequence args )
 				args[i] = allocate_wstring( args[i] )
 			end if
 
-			atom arg = machine_func( M_ALLOC, sizeof(arg_types[i]) )
-			poke_type( arg, arg_types[i], args[i] )
+			atom parg = machine_func( M_ALLOC, sizeof(arg_types[i]) )
+			poke_type( parg, arg_types[i], args[i] )
 
-			poke_pointer( pargs+SIZEOF_POINTER*(i-1), arg )
-			pfree &= arg
+			poke_pointer( pargs+SIZEOF_POINTER*(i-1), parg )
+			pfree &= parg
 
 		end for
 
@@ -896,6 +980,9 @@ override function c_func( integer rid, sequence args )
 	return rvalue
 end function
 
+--**
+-- Call a C procedure.
+--
 override procedure c_proc( integer rid, sequence args )
 
 	if rid > 0 then
@@ -906,4 +993,91 @@ override procedure c_proc( integer rid, sequence args )
 	object void = c_func( rid, args )
 
 end procedure
+
+function closure_func( atom cif, atom prvalue, atom pargs, atom id )
+
+	atom nargs = peek4u( cif + ffi_cif__nargs )
+	atom parg_types = peek_pointer( cif + ffi_cif__arg_types )
+	atom rtype = peek_pointer( cif + ffi_cif__rtype )
+
+	sequence args = repeat( NULL, nargs )
+	sequence arg_types = peek_pointer({ parg_types, nargs })
+
+	for i = 1 to nargs do
+
+		atom parg = peek_pointer( pargs+SIZEOF_POINTER*(i-1) )
+		args[i] = peek_type( parg, arg_types[i] )
+
+		if arg_types[i] = C_STRING then
+			args[i] = peek_string( args[i] )
+		elsif arg_types[i] = C_WSTRING then
+			args[i] = peek_wstring( args[i] )
+		end if
+
+	end for
+
+	object rvalue = call_func( id, args )
+
+	if rtype != C_VOID then
+		poke_type( prvalue, rtype, rvalue )
+	end if
+
+	return NULL
+end function
+constant CLOSURE_FUNC = machine_func( M_CALL_BACK, routine_id("closure_func") )
+
+--**
+-- Return the memory address for a Euphoria routine.
+--
+public function call_back( object id, object arg_types=C_VOID, atom rtype=C_INT )
+
+	if equal( arg_types, C_VOID ) then
+		return machine_func( M_CALL_BACK, id )
+	end if
+
+ifdef WINDOWS and BITS32 then
+	integer abi = FFI_STDCALL
+elsedef
+	integer abi = FFI_DEFAULT_ABI
+end ifdef
+
+	if sequence( id ) and id[1] = '+' then
+
+		ifdef WINDOWS and BITS32 then
+			abi = FFI_MS_CDECL
+		end ifdef
+
+		id = id[2]
+
+	end if
+
+	atom parg_types = NULL
+	atom nargs = length( arg_types )
+
+	if nargs then
+		parg_types = machine_func( M_ALLOC, SIZEOF_POINTER*nargs )
+		poke_pointer( parg_types, arg_types )
+	end if
+
+	atom cif = machine_func( M_ALLOC, SIZEOF_FFI_CIF )
+	atom cif_status = eu:c_func( _ffi_prep_cif, {cif,abi,nargs,rtype,parg_types} )
+
+	if cif_status != FFI_OK then
+		machine_proc( M_CRASH, sprintf("ffi_prep_cif() returned %s (%d)\n",{ffi_errors[cif_status],cif_status}) )
+	end if
+
+	atom pmemory = machine_func( M_ALLOC, SIZEOF_POINTER )
+	atom closure = eu:c_func( _ffi_closure_alloc, {SIZEOF_FFI_CLOSURE,pmemory} )
+
+	atom codeloc = peek_pointer( pmemory )
+	atom loc_status = eu:c_func( _ffi_prep_closure_loc, {closure,cif,CLOSURE_FUNC,id,codeloc} )
+
+	machine_proc( M_FREE, pmemory )
+
+	if loc_status != FFI_OK then
+		machine_proc( M_CRASH, sprintf("ffi_prep_closure_loc() returned %s (%d)\n",{ffi_errors[loc_status],loc_status}) )
+	end if
+
+	return codeloc
+end function
 
